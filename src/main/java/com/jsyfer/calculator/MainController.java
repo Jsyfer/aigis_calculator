@@ -1,8 +1,14 @@
 package com.jsyfer.calculator;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.jsyfer.calculator.model.ExpMsg;
 
 @RestController
 public class MainController {
@@ -31,22 +37,182 @@ public class MainController {
 			71904, 74577, 77354, 80233, 83214, 86299, 89487, 92777, 96170, 99667, 102237, 104911, 107687, 110566,
 			113549, 116633, 119820, 123111, 126504 };
 
-	@GetMapping("/calculator")
-	public int expCalculator(@RequestParam int expToNextLv, @RequestParam int currentLv, @RequestParam int targetLv,
-			@RequestParam String rarity) {
+	@PostMapping("/calculator")
+	public ExpMsg expCalculator(@RequestBody ExpMsg expMsg) {
 		int requireExp = 0;
-		switch (rarity) {
+		int targetLv = expMsg.getTargetLv();
+		int currentLv = expMsg.getCurrentLv();
+		int expToNextLv = expMsg.getExpToNextLv();
+		switch (expMsg.getRarity()) {
 		case "gold":
 			requireExp = GOLD[targetLv] - GOLD[currentLv + 1] + expToNextLv;
+			expMsg = calculate(requireExp, 18000, expMsg);
+			expMsg.setRequireExp(requireExp);
 			break;
 		case "platinum":
 			requireExp = PLATINUM[targetLv] - PLATINUM[currentLv + 1] + expToNextLv;
+			expMsg = calculate(requireExp, 19000, expMsg);
+			expMsg.setRequireExp(requireExp);
 			break;
 		case "black":
 			requireExp = BLACK[targetLv] - BLACK[currentLv + 1] + expToNextLv;
+			expMsg = calculate(requireExp, 20000, expMsg);
+			expMsg.setRequireExp(requireExp);
 			break;
 		}
-		return requireExp;
+
+		return expMsg;
+	}
+
+	private ExpMsg calculate(int requireExp, int syukufukuSeireiExp, ExpMsg expMsg) {
+		boolean useBlackArmor = expMsg.isUseBlackArmor();
+		boolean useSyufukuSeirei = expMsg.isUseSyufukuSeirei();
+		boolean usePurezeSeirei = expMsg.isUsePurezeSeirei();
+		boolean useCaffeSeirei = expMsg.isUseCaffeSeirei();
+
+		int platinumArmorLimitExp = 8000 * expMsg.getPlatinumArmorLimitExpNum();
+		int blackArmorNum;
+		int platinumArmorNum;
+		int syukufukuSeireiNum;
+		int purezeSeireiNum;
+		int caffeSeireiNum;
+		if (useBlackArmor) {
+			blackArmorNum = requireExp / 40000;
+			requireExp = requireExp % 40000;
+			expMsg.setBlackArmorNum(blackArmorNum);
+		}
+		if (8000 <= requireExp && requireExp <= platinumArmorLimitExp) {
+			platinumArmorNum = requireExp / 8000;
+			requireExp = requireExp % 8000;
+			expMsg.setPlatinumArmorNum(platinumArmorNum);
+		} else if (platinumArmorLimitExp < requireExp) {
+			if (useSyufukuSeirei) {
+				syukufukuSeireiNum = requireExp / syukufukuSeireiExp;
+				requireExp = requireExp % syukufukuSeireiExp;
+				expMsg.setSyukufukuSeireiNum(syukufukuSeireiNum);
+			}
+			if (requireExp < 8000) {
+				return calculateRest(requireExp, expMsg);
+			}
+			if (usePurezeSeirei) {
+				purezeSeireiNum = requireExp / 18000;
+				requireExp = requireExp % 18000;
+				expMsg.setPurezeSeireiNum(purezeSeireiNum);
+			}
+			if (requireExp < 8000) {
+				return calculateRest(requireExp, expMsg);
+			}
+			if (useCaffeSeirei) {
+				caffeSeireiNum = requireExp / 10000;
+				requireExp = requireExp % 10000;
+				expMsg.setCaffeSeireiNum(caffeSeireiNum);
+			}
+			if (requireExp < 8000) {
+				return calculateRest(requireExp, expMsg);
+			}
+			platinumArmorNum = requireExp / 8000;
+			requireExp = requireExp % 8000;
+			expMsg.setPlatinumArmorNum(platinumArmorNum);
+		}
+
+		return calculateRest(requireExp, expMsg);
+
+	}
+
+	// 铜铁狗粮数量计算
+	private ExpMsg calculateRest(int requireExp, ExpMsg expMsg) {
+		int exp295Num = 0;
+		int exp285Num = 0;
+		int exp265Num = 0;
+		int exp255Num = 0;
+		int exp100Num = 0;
+		int exp70Num = 0;
+		int expNum;
+		// 补全使能被5整除
+		int tempNum = requireExp % 5;
+		if (tempNum != 5) {
+			requireExp = requireExp + 5 - tempNum;
+		}
+		expNum = requireExp / 550;
+		requireExp = requireExp % 550;
+
+		if (requireExp <= 70) {
+			exp70Num = 1;
+			expMsg.setExp70Num(exp70Num);
+		} else if (requireExp <= 100) {
+			exp100Num = 1;
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp <= 140) {
+			exp70Num = 2;
+			expMsg.setExp70Num(exp70Num);
+		} else if (requireExp <= 170) {
+			exp70Num = 1;
+			exp100Num = 1;
+			expMsg.setExp70Num(exp70Num);
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp <= 200) {
+			exp100Num = 2;
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp <= 210) {
+			exp70Num = 3;
+			expMsg.setExp70Num(exp70Num);
+		} else if (requireExp <= 240) {
+			exp100Num = 1;
+			exp70Num = 3;
+			expMsg.setExp70Num(exp70Num);
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp <= 255) {
+			exp255Num = 1;
+			expMsg.setExp255Num(exp255Num);
+		} else if (requireExp <= 265) {
+			exp265Num = 1;
+			expMsg.setExp265Num(exp265Num);
+		} else if (requireExp <= 285) {
+			exp285Num = 1;
+			expMsg.setExp285Num(exp285Num);
+		} else if (requireExp <= 295) {
+			exp295Num = 1;
+			expMsg.setExp295Num(exp295Num);
+		} else if (requireExp <= 300) {
+			exp100Num = 3;
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp <= 400) {
+			exp100Num = 4;
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp < 450) {
+			exp255Num = 1;
+			exp100Num = 2;
+			expMsg.setExp255Num(exp255Num);
+			expMsg.setExp100Num(exp100Num);
+		} else if (requireExp < 510) {
+			exp255Num = 2;
+			expMsg.setExp255Num(exp255Num);
+		}
+//		List<List<Integer>> resList = combinationSum(candidates, target);
+//
+//		System.out.println(resList);
+		expMsg.setExpNum(expNum);
+		return expMsg;
+	}
+
+	private List<List<Integer>> combinationSum(int[] candidates, int target) {
+		Arrays.sort(candidates);
+		List<List<Integer>> result = new ArrayList<List<Integer>>();
+		getResult(result, new ArrayList<Integer>(), candidates, target, 0);
+		return result;
+	}
+
+	private void getResult(List<List<Integer>> result, List<Integer> cur, int candidates[], int target, int start) {
+		if (target > 0) {
+			for (int i = start; i < candidates.length && target >= candidates[i]; i++) {
+				cur.add(candidates[i]);
+				getResult(result, cur, candidates, target - candidates[i], i);
+				cur.remove(cur.size() - 1);
+			} // for
+		} // if
+		else if (target == 0) {
+			result.add(new ArrayList<Integer>(cur));
+		} // else if
 	}
 
 }
